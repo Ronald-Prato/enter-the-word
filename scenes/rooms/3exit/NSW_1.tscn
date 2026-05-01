@@ -1,0 +1,8 @@
+[gd_scene format=4 uid="uid://3d710f156415"]
+
+[ext_resource type="PackedScene" uid="uid://bym2kjnpytjvx" path="res://scenes/rooms/room_base.tscn" id="1_base"]
+
+[node name="NSW_1" type="Node2D" instance=ExtResource("1_base")]
+open_exits = 11
+decor_variant = 1
+exterior_deco_salt = 23

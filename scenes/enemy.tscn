@@ -1,0 +1,63 @@
+[gd_scene format=3 uid="uid://b1rwnjb20bwcf"]
+
+[ext_resource type="Script" path="res://scripts/enemy.gd" id="1_enemy"]
+[ext_resource type="PackedScene" uid="uid://c10r82dxpickxp" path="res://scenes/xp_pickup.tscn" id="2_xp_pickup"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_enemy_body"]
+radius = 8.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_enemy_click"]
+radius = 36.0
+
+[sub_resource type="Gradient" id="Gradient_enemy_trail"]
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(2.4, 0.3, 0.35, 0, 3.2, 0.55, 0.48, 0.95)
+
+[node name="Enemy" type="CharacterBody2D" groups=["enemies"]]
+collision_layer = 8
+collision_mask = 11
+motion_mode = 1
+script = ExtResource("1_enemy")
+xp_pickup_scene = ExtResource("2_xp_pickup")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_enemy_body")
+
+[node name="SpriteHolder" type="Node2D" parent="."]
+
+[node name="ClickArea" type="Area2D" parent="."]
+collision_layer = 16
+collision_mask = 0
+monitoring = false
+monitorable = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ClickArea"]
+shape = SubResource("CircleShape2D_enemy_click")
+
+[node name="HitParticles" type="CPUParticles2D" parent="."]
+z_index = 2
+emitting = false
+amount = 6
+lifetime = 0.36
+one_shot = true
+explosiveness = 0.95
+randomness = 0.25
+spread = 22.0
+gravity = Vector2(0, 80)
+initial_velocity_min = 180.0
+initial_velocity_max = 280.0
+angular_velocity_min = 0.0
+angular_velocity_max = 0.0
+scale_amount_min = 2.0
+scale_amount_max = 3.0
+color = Color(1, 0.42, 0.38, 1)
+
+[node name="Trail" type="Line2D" parent="."]
+top_level = true
+z_index = -1
+width = 7.5
+default_color = Color(1, 1, 1, 1)
+gradient = SubResource("Gradient_enemy_trail")
+begin_cap_mode = 2
+end_cap_mode = 2
+joint_mode = 2

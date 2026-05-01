@@ -1,0 +1,58 @@
+[gd_scene format=3 uid="uid://b5goqftycumm3"]
+
+[ext_resource type="Script" uid="uid://b78cxtw5vmbf8" path="res://scripts/enemy1.gd" id="1_enemy"]
+[ext_resource type="Texture2D" uid="uid://jbodtfwxtpoq" path="res://assets/Character_animation/monsters_idle/skeleton1/v2/skeleton_v2_1.png" id="1_ihqwx"]
+[ext_resource type="Texture2D" uid="uid://be3e7qh5ffawp" path="res://assets/Character_animation/monsters_idle/skeleton1/v2/skeleton_v2_2.png" id="2_pkrqa"]
+[ext_resource type="Texture2D" uid="uid://chww8a26abh7t" path="res://assets/Character_animation/monsters_idle/skeleton1/v2/skeleton_v2_3.png" id="3_3ak47"]
+[ext_resource type="Texture2D" uid="uid://dwvycu2vfwj7i" path="res://assets/Character_animation/monsters_idle/skeleton1/v2/skeleton_v2_4.png" id="4_u6wun"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_n2stm"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_ihqwx")
+}, {
+"duration": 1.0,
+"texture": ExtResource("2_pkrqa")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_3ak47")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_u6wun")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_cx467"]
+size = Vector2(6.5, 7.5)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_detect"]
+radius = 100.0
+
+[node name="Enemy1" type="CharacterBody2D" unique_id=170270235]
+motion_mode = 1
+script = ExtResource("1_enemy")
+
+[node name="DepthSort" type="Marker2D" parent="." unique_id=170270236]
+position = Vector2(0, 6)
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=824875394]
+scale = Vector2(1.5, 1.5)
+sprite_frames = SubResource("SpriteFrames_n2stm")
+autoplay = "default"
+frame_progress = 0.5852048
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=630320739]
+position = Vector2(-3.25, 2.75)
+shape = SubResource("RectangleShape2D_cx467")
+
+[node name="DetectionArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 1
+monitorable = false
+
+[node name="DetectionShape" type="CollisionShape2D" parent="DetectionArea"]
+shape = SubResource("CircleShape2D_detect")

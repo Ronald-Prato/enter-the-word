@@ -1,0 +1,105 @@
+[gd_scene format=3 uid="uid://bvwp7w15cy65s"]
+
+[ext_resource type="PackedScene" uid="uid://ckscxop1uj0pu" path="res://scenes/player.tscn" id="1_yqjtg"]
+[ext_resource type="Script" uid="uid://b7k2n8q4p1nax" path="res://scripts/game.gd" id="2_game"]
+[ext_resource type="Script" uid="uid://c2jklr032e5ke" path="res://scripts/minimap_root.gd" id="3_minimap"]
+[ext_resource type="Script" uid="uid://bm2jowqukdpyb" path="res://scripts/minimap_panel.gd" id="4_minimap_panel"]
+[ext_resource type="Script" uid="uid://cgvlc6q644086" path="res://scripts/camera_follow.gd" id="5_camera_follow"]
+[ext_resource type="Script" uid="uid://bupronyascot" path="res://scripts/combat_feedback_hud.gd" id="6_combat_feedback"]
+[ext_resource type="Shader" uid="uid://d0jghvq2kemo8" path="res://shaders/damage_vignette.gdshader" id="7_vignette_shader"]
+
+[sub_resource type="Environment" id="Environment_world"]
+background_mode = 3
+glow_enabled = true
+glow_levels/1 = 0.25
+glow_levels/2 = 0.55
+glow_levels/3 = 1.0
+glow_levels/4 = 0.7
+glow_levels/5 = 0.4
+glow_normalized = true
+glow_intensity = 0.85
+glow_blend_mode = 0
+glow_hdr_threshold = 0.85
+glow_hdr_scale = 2.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_damage_vignette"]
+shader = ExtResource("7_vignette_shader")
+shader_parameter/intensity = 0.0
+shader_parameter/crack_strength = 0.0
+shader_parameter/color = Color(1.2, 0.12, 0.16, 0.28)
+shader_parameter/inner_radius = 0.78
+shader_parameter/outer_radius = 1.05
+shader_parameter/curve = 2.8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_minimap_panel"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(1, 1, 1, 0.372549)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+shadow_color = Color(0, 0, 0, 0.32)
+shadow_size = 5
+shadow_offset = Vector2(0, 2)
+
+[node name="Game" type="Node2D" unique_id=791889660]
+script = ExtResource("2_game")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=791889661]
+environment = SubResource("Environment_world")
+
+[node name="Player" parent="." unique_id=1209272007 instance=ExtResource("1_yqjtg")]
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1724034308]
+zoom = Vector2(2.6, 2.6)
+script = ExtResource("5_camera_follow")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=742585927]
+
+[node name="CombatFeedback" type="Control" parent="CanvasLayer" unique_id=742585928]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("6_combat_feedback")
+
+[node name="DamageVignette" type="ColorRect" parent="CanvasLayer/CombatFeedback" unique_id=742585929]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_damage_vignette")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="MinimapRoot" type="Panel" parent="CanvasLayer" unique_id=1477031437]
+clip_children = 2
+clip_contents = true
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -315.0
+offset_top = 47.0
+offset_right = -65.0
+offset_bottom = 297.0
+grow_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_minimap_panel")
+script = ExtResource("4_minimap_panel")
+
+[node name="MinimapDraw" type="Control" parent="CanvasLayer/MinimapRoot" unique_id=1477031438]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_minimap")
