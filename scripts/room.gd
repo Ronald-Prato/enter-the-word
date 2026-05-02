@@ -47,32 +47,17 @@ const _SWAMP_EXTERIOR_ATLAS_FOOTPRINT: Dictionary = {
 
 func _ready() -> void:
 	_apply_exit_doors()
-	_apply_decor_variant()
-	_erase_tiles_beyond_blocked_doors()
-	var tube := get_node_or_null("Tube") as TileMapLayer
-	if tube != null and Dungeon.is_start_room_hub():
-		tube.visible = false
-		tube.collision_enabled = false
-	## Un frame después: evita un frame raro al instanciar la sala en transición (props encima del suelo).
-	call_deferred("_paint_exterior_swamp_decoration")
 
 
 func _apply_exit_doors() -> void:
-	var doors_sprites := get_node_or_null("DoorsSprites") as TileMapLayer
-	if doors_sprites != null:
-		doors_sprites.clear()
 	if (open_exits & _EXIT_N) == 0:
 		_close_door_area($Doors/TopDoor as Area2D)
-		_paint_swamp_wall_cap(doors_sprites, Vector2i(0, -8), Vector2i(4, 0))
 	if (open_exits & _EXIT_S) == 0:
 		_close_door_area($Doors/BottomDoor as Area2D)
-		_paint_swamp_wall_cap(doors_sprites, Vector2i(0, 6), Vector2i(4, 2))
 	if (open_exits & _EXIT_W) == 0:
 		_close_door_area($Doors/LeftDoor as Area2D)
-		_paint_swamp_wall_cap(doors_sprites, Vector2i(-13, -1), Vector2i(3, 1))
 	if (open_exits & _EXIT_E) == 0:
 		_close_door_area($Doors/RightDoor as Area2D)
-		_paint_swamp_wall_cap(doors_sprites, Vector2i(13, -1), Vector2i(5, 1))
 
 
 func _close_door_area(area: Area2D) -> void:
@@ -81,32 +66,6 @@ func _close_door_area(area: Area2D) -> void:
 	var cs := area.get_node_or_null("CollisionShape2D") as CollisionShape2D
 	if cs != null:
 		cs.disabled = true
-
-
-func _paint_swamp_wall_cap(layer: TileMapLayer, cell: Vector2i, atlas: Vector2i) -> void:
-	if layer == null or layer.tile_set == null:
-		return
-	layer.set_cell(cell, _SWAMP_SOURCE, atlas)
-
-
-## Quita tiles en el pasillo exterior (misma celda en suelo / decoración / tubo) para que no se vea nada tras el tapón.
-func _erase_cell_beyond_door(cell: Vector2i) -> void:
-	for path: String in ["MainRoomLayout", "Decoration", "Tube"]:
-		var layer := get_node_or_null(path) as TileMapLayer
-		if layer == null:
-			continue
-		layer.erase_cell(cell)
-
-
-func _erase_tiles_beyond_blocked_doors() -> void:
-	if (open_exits & _EXIT_N) == 0:
-		_erase_cell_beyond_door(Vector2i(0, -9))
-	if (open_exits & _EXIT_S) == 0:
-		_erase_cell_beyond_door(Vector2i(0, 7))
-	if (open_exits & _EXIT_W) == 0:
-		_erase_cell_beyond_door(Vector2i(-14, -1))
-	if (open_exits & _EXIT_E) == 0:
-		_erase_cell_beyond_door(Vector2i(14, -1))
 
 
 func _apply_decor_variant() -> void:

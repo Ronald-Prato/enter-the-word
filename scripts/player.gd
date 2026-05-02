@@ -7,7 +7,7 @@ extends CharacterBody2D
 @export var damage: float = 3.0
 
 ## Radio fijo del ataque cuerpo a cuerpo: el swing se alinea al borde de este círculo.
-@export var attack_range: float = 108.0
+@export var attack_range: float = 70.0
 
 ## Escena de swing que colisiona con enemigos (igual que en skai).
 @export var swing_scene: PackedScene
@@ -353,6 +353,7 @@ func _spawn_swing() -> void:
 		parent.add_child(swing)
 	else:
 		add_sibling(swing)
+	swing.global_position = global_position
 	var angle: float = _last_facing_dir.angle()
 	if swing.has_method("setup"):
 		swing.call(

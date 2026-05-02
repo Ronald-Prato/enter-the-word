@@ -3,5 +3,6 @@
 [ext_resource type="Script" path="res://scripts/mosquito_death_scraps.gd" id="1_scraps"]
 
 [node name="MosquitoDeathScraps" type="Node2D"]
-z_index = -1
+z_as_relative = false
+z_index = 1
 script = ExtResource("1_scraps")

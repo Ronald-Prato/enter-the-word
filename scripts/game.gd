@@ -11,9 +11,8 @@ const MOSQUITO_SCENE := preload("res://scenes/mosquito_enemy.tscn")
 ## Distancia mínima jugador–enemigo al spawnear (espacio global, con escala de sala aplicada).
 const ENEMY_MIN_PLAYER_DISTANCE_GLOBAL := 80.0
 ## Separación mínima entre enemigos al spawnear (global); evita que aparezcan amontonados.
-const ENEMY_MIN_SEPARATION_GLOBAL := 52.0
+const ENEMY_MIN_SEPARATION_GLOBAL := 90.0
 const MAX_CONCURRENT_MOSQUITOES := 3
-const RESPAWN_DELAY_S := 1.0
 ## Tras entrar en sala con enemigos: espera antes del primer mosquito.
 const INITIAL_ENEMY_SPAWN_DELAY_S := 0.85
 ## Tiempo aleatorio entre cada uno de los mosquitos iniciales (no el mismo instante).
@@ -22,10 +21,11 @@ const INITIAL_ENEMY_STAGGER_MAX_S := 1.05
 ## Bajas del jugador en la sala para salir del combat mode (cámara amplia + minimapa).
 const COMBAT_KILLS_TO_CLEAR := 3
 
-## Orden de dibujado: el tubo queda entre jugador detrás y jugador delante.
-const Z_TUBE := 5
-const Z_PLAYER_BEHIND_TUBE := 0
-const Z_PLAYER_IN_FRONT_OF_TUBE := 10
+## `mosquito_death_scraps.tscn` usa z_index=1: debe quedar entre suelo (TileMap ≤ 0) y el jugador (≥ Z_PLAYER_DEFAULT).
+## Capas tipo Decoration4 / overrides en salas pueden llegar a z_index relativo 4; el jugador “detrás” del enemigo debe seguir > eso y < Z_ENEMY.
+const Z_ENEMY := 6
+const Z_PLAYER_DEFAULT := 5
+const Z_PLAYER_IN_FRONT := 10
 
 @export var room_transition_duration: float = 0.22
 @export var combat_minimap_fade_out_s: float = 0.28
@@ -42,12 +42,7 @@ var _combat_active: bool = false
 var _room_combat_finished: bool = false
 var _kills_this_room: int = 0
 var _minimap_fade_tween: Tween
-## Tubo reparentado a Game para poder ordenar con el jugador; durante slide vuelve a la sala vieja.
-var _depth_tube: TileMapLayer = null
 var _enemy_spawn_rng := RandomNumberGenerator.new()
-var _previous_mosquito_count: int = 0
-var _pending_spawns: int = 0
-var _respawn_timer: float = 0.0
 ## Mosquitos iniciales de la sala: se reparten en el tiempo (no todos en un frame).
 var _room_initial_spawns_left: int = 0
 var _room_initial_spawn_timer: float = 0.0
@@ -85,7 +80,21 @@ func _spawn_room() -> void:
 	move_child(room, 0)
 	_apply_player_entry_from_room(room)
 	_spawn_enemy_for_room_if_needed(room)
-	register_tube_from_room(room)
+	_restore_scraps_for_room(room, room_id)
+
+
+func _restore_scraps_for_room(room: Node2D, room_id: int) -> void:
+	if not Dungeon.use_generated():
+		return
+	var scraps_data: Array = Dungeon.get_room_scraps(room_id)
+	for sd in scraps_data:
+		var scraps := load("res://scenes/mosquito_death_scraps.tscn").instantiate() as Node2D
+		if scraps == null:
+			continue
+		room.add_child(scraps)
+		scraps.position = sd.get("position", Vector2.ZERO)
+		if scraps.has_method("setup"):
+			scraps.call("setup", room.to_global(scraps.position), sd["colors"], sd["offsets"])
 
 
 # --------------- depth sorting ---------------
@@ -96,21 +105,18 @@ func _physics_process(_delta: float) -> void:
 
 func _process(delta: float) -> void:
 	if _transitioning or not Dungeon.use_generated() or Dungeon.current_room_id == 0:
-		_previous_mosquito_count = 0
 		_room_initial_spawns_left = 0
 		_room_initial_spawn_timer = 0.0
 		return
 	if _room_combat_finished:
 		_room_initial_spawns_left = 0
 		_room_initial_spawn_timer = 0.0
-		_previous_mosquito_count = _count_valid_mosquitoes()
 		return
 	if _room_initial_spawns_left > 0:
 		_room_initial_spawn_timer -= delta
 		if _room_initial_spawn_timer <= 0.0:
 			if _spawn_single_mosquito():
 				_room_initial_spawns_left -= 1
-				_previous_mosquito_count = _count_valid_mosquitoes()
 				if _room_initial_spawns_left > 0:
 					_room_initial_spawn_timer = _enemy_spawn_rng.randf_range(
 						INITIAL_ENEMY_STAGGER_MIN_S, INITIAL_ENEMY_STAGGER_MAX_S
@@ -118,42 +124,8 @@ func _process(delta: float) -> void:
 				else:
 					_room_initial_spawn_timer = 0.0
 			else:
-				## A tope de enemigos (p. ej. respawn): reintentar en breve sin consumir la cola.
+				## A tope de enemigos: reintentar en breve sin consumir la cola.
 				_room_initial_spawn_timer = 0.18
-	var current_count := _count_valid_mosquitoes()
-	if current_count < _previous_mosquito_count:
-		_pending_spawns += (_previous_mosquito_count - current_count)
-		if _respawn_timer <= 0.0:
-			_respawn_timer = RESPAWN_DELAY_S
-	_previous_mosquito_count = current_count
-	if _pending_spawns > 0:
-		_respawn_timer -= delta
-		if _respawn_timer <= 0.0:
-			if _spawn_single_mosquito():
-				_pending_spawns -= 1
-			_previous_mosquito_count = _count_valid_mosquitoes()
-			if _pending_spawns > 0:
-				_respawn_timer = RESPAWN_DELAY_S
-			else:
-				_respawn_timer = 0.0
-
-
-func register_tube_from_room(room: Node2D) -> void:
-	var tube := room.get_node_or_null("Tube") as TileMapLayer
-	if tube == null or not tube.visible:
-		return
-	_depth_tube = tube
-	tube.z_as_relative = false
-	tube.z_index = Z_TUBE
-	tube.reparent(self, true)
-	if _player != null:
-		move_child(tube, _player.get_index() + 1)
-
-
-func _prepare_tube_for_room_slide(old_room: Node2D) -> void:
-	if _depth_tube != null and is_instance_valid(_depth_tube):
-		_depth_tube.reparent(old_room, true)
-	_depth_tube = null
 
 
 func is_room_transitioning() -> bool:
@@ -189,8 +161,6 @@ func _finish_room_combat_objective() -> void:
 		return
 	_combat_active = false
 	_room_combat_finished = true
-	_pending_spawns = 0
-	_respawn_timer = 0.0
 	_room_initial_spawns_left = 0
 	_room_initial_spawn_timer = 0.0
 	if _camera != null and _camera.has_method("enter_room_showcase_view"):
@@ -217,8 +187,6 @@ func _reset_combat_state_for_room_travel() -> void:
 	_combat_active = false
 	_room_combat_finished = false
 	_kills_this_room = 0
-	_pending_spawns = 0
-	_respawn_timer = 0.0
 	_room_initial_spawns_left = 0
 	_room_initial_spawn_timer = 0.0
 	if _minimap_fade_tween != null and _minimap_fade_tween.is_valid():
@@ -242,44 +210,30 @@ func _update_player_depth() -> void:
 	if _player == null:
 		return
 	var py := _player.global_position.y
-	var has_tube := _depth_tube != null and is_instance_valid(_depth_tube)
 	var enemies: Array[Node] = get_tree().get_nodes_in_group("enemies")
 	var has_enemy := false
 	for e in enemies:
 		if is_instance_valid(e):
 			has_enemy = true
 			break
-	if not has_tube and not has_enemy:
+	if not has_enemy:
 		_player.z_as_relative = false
-		_player.z_index = 0
+		_player.z_index = Z_PLAYER_DEFAULT
 		return
 	var in_front := true
-	if has_tube:
-		var room := get_tree().get_first_node_in_group(GROUP_CURRENT_ROOM) as Node2D
-		if room == null:
-			return
-		var line_y: float
-		var marker := room.get_node_or_null("TubeDepthSort") as Marker2D
-		if marker != null:
-			line_y = marker.global_position.y
+	for enemy in enemies:
+		if not is_instance_valid(enemy):
+			continue
+		var ey_line: float
+		if enemy.has_method("get_depth_sort_global_y"):
+			ey_line = enemy.get_depth_sort_global_y()
 		else:
-			line_y = _depth_tube.global_position.y + 8.0
-		if py < line_y:
+			ey_line = enemy.global_position.y
+		if py < ey_line:
 			in_front = false
-	if in_front:
-		for enemy in enemies:
-			if not is_instance_valid(enemy):
-				continue
-			var ey_line: float
-			if enemy.has_method("get_depth_sort_global_y"):
-				ey_line = enemy.get_depth_sort_global_y()
-			else:
-				ey_line = enemy.global_position.y
-			if py < ey_line:
-				in_front = false
-				break
+			break
 	_player.z_as_relative = false
-	_player.z_index = Z_PLAYER_IN_FRONT_OF_TUBE if in_front else Z_PLAYER_BEHIND_TUBE
+	_player.z_index = Z_PLAYER_IN_FRONT if in_front else Z_PLAYER_DEFAULT
 
 
 # --------------- room transitions ---------------
@@ -289,9 +243,6 @@ func begin_room_transition(exit_side: RoomTransition.ExitSide) -> void:
 		return
 	_reset_combat_state_for_room_travel()
 	_clear_enemies_from_game()
-	_previous_mosquito_count = 0
-	_pending_spawns = 0
-	_respawn_timer = 0.0
 	_room_initial_spawns_left = 0
 	_room_initial_spawn_timer = 0.0
 	var old_room := get_tree().get_first_node_in_group(GROUP_CURRENT_ROOM) as Node2D
@@ -312,7 +263,6 @@ func begin_room_transition(exit_side: RoomTransition.ExitSide) -> void:
 		Dungeon.mark_room_entered(room_id)
 		if _minimap_draw != null:
 			_minimap_draw.animate_grid_transition(prev_room_id, room_id, room_transition_duration)
-	_prepare_tube_for_room_slide(old_room)
 	var slide_offset := _slide_offset_for_exit(exit_side)
 	_transitioning = true
 	if _player != null:
@@ -323,6 +273,7 @@ func begin_room_transition(exit_side: RoomTransition.ExitSide) -> void:
 	new_room.scale = Vector2(ROOM_SCALE, ROOM_SCALE)
 	add_child(new_room)
 	move_child(new_room, 0)
+	_restore_scraps_for_room(new_room, room_id)
 	var old_end := old_room.position + slide_offset
 	var player_end := _player.global_position + slide_offset if _player != null else Vector2.ZERO
 	var tween := create_tween()
@@ -360,7 +311,6 @@ func _finish_room_transition(old_room: Node2D, new_room: Node2D, player: Charact
 		player.transition_locked = false
 	_transitioning = false
 	_spawn_enemy_for_room_if_needed(new_room)
-	register_tube_from_room(new_room)
 
 
 func _apply_player_entry_from_room(room: Node2D) -> void:
@@ -386,9 +336,6 @@ func _spawn_enemy_for_room_if_needed(room: Node2D) -> void:
 		return
 	_room_initial_spawns_left = MAX_CONCURRENT_MOSQUITOES
 	_room_initial_spawn_timer = INITIAL_ENEMY_SPAWN_DELAY_S
-	_previous_mosquito_count = 0
-	_pending_spawns = 0
-	_respawn_timer = 0.0
 	_try_begin_combat_mode(false)
 
 
@@ -419,7 +366,7 @@ func _spawn_single_mosquito(room: Node2D = null) -> bool:
 		_enemy_spawn_rng,
 		_player.global_position,
 		ENEMY_MIN_PLAYER_DISTANCE_GLOBAL,
-		48,
+		80,
 		avoid,
 		ENEMY_MIN_SEPARATION_GLOBAL
 	)
@@ -429,7 +376,7 @@ func _spawn_single_mosquito(room: Node2D = null) -> bool:
 	add_child(enemy)
 	enemy.global_position = room.to_global(local_pt)
 	enemy.z_as_relative = false
-	enemy.z_index = Z_TUBE
+	enemy.z_index = Z_ENEMY
 	if _player != null:
 		move_child(enemy, _player.get_index() + 1)
 	if enemy.has_method("play_spawn_fade_in"):

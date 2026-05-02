@@ -13,7 +13,7 @@
 [ext_resource type="Texture2D" uid="uid://bwm5vcqwwbhy6" path="res://assets/PenAssets/Player/With Sword/Down/04 Stranded - Pack 4 back up-Roll Down.png" id="11_roll_d"]
 [ext_resource type="Texture2D" uid="uid://pmi1nfx1j5cu" path="res://assets/PenAssets/Player/With Sword/Right Left/R Roll.png" id="12_roll_s"]
 [ext_resource type="Texture2D" uid="uid://oo8ck6vkmrcj" path="res://assets/PenAssets/Player/With Sword/Up/04 Stranded - Pack 4 back up-Roll Up.png" id="13_roll_u"]
-[ext_resource type="PackedScene" uid="uid://player_swing_scene" path="res://scenes/player_swing.tscn" id="14_swing"]
+[ext_resource type="PackedScene" path="res://scenes/player_swing.tscn" id="14_swing"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_ad1"]
 atlas = ExtResource("8_slash_d")

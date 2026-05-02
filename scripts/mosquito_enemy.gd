@@ -24,7 +24,7 @@ const _DEATH_SCRAPS_SCENE: PackedScene = preload("res://scenes/mosquito_death_sc
 @export var strike_hit_shape_size: Vector2 = Vector2(38, 22)
 ## Tope de HDR en el sprite al recibir golpe (bloom sigue la silueta del pixel art).
 @export_range(1.2, 5.5, 0.05) var hit_flash_sprite_hdr_peak: float = 3.05
-@export_range(4, 28, 1) var death_scrap_count: int = 10
+@export_range(4, 28, 1) var death_scrap_count: int = 16
 @export_range(4.0, 28.0, 0.5) var death_scrap_spread_px: float = 14.0
 
 @onready var _sprite: AnimatedSprite2D = $MosquitoSprite
@@ -227,16 +227,24 @@ func _play_death_outro() -> void:
 
 
 func _spawn_mosquito_death_scraps() -> void:
-	var holder := get_parent()
-	if holder == null:
+	var room := get_tree().get_first_node_in_group("current_room") as Node2D
+	if room == null:
 		return
 	var scraps := _DEATH_SCRAPS_SCENE.instantiate() as Node2D
 	if scraps == null:
 		return
-	holder.add_child(scraps)
+	var data := _build_death_scrap_data(death_scrap_count, death_scrap_spread_px)
+	room.add_child(scraps)
+	scraps.global_position = global_position
 	if scraps.has_method("setup"):
-		var data := _build_death_scrap_data(death_scrap_count, death_scrap_spread_px)
 		scraps.call("setup", global_position, data["colors"], data["offsets"])
+	if Dungeon.use_generated():
+		var scrap_data := {
+			"colors": data["colors"].duplicate(),
+			"offsets": data["offsets"].duplicate(),
+			"position": scraps.position,
+		}
+		Dungeon.add_room_scrap(Dungeon.current_room_id, scrap_data)
 
 
 func _build_death_scrap_data(count: int, spread: float) -> Dictionary:

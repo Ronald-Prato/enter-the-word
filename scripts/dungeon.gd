@@ -48,6 +48,27 @@ var _room_visited: Array = []
 
 var current_room_id: int = 0
 
+## Scraps persistentes por sala: room_id -> Array de diccionarios con {colors: PackedColorArray, offsets: PackedVector2Array, position: Vector2}.
+var _room_scraps: Dictionary = {}
+
+
+func get_room_scraps(room_id: int) -> Array:
+	return _room_scraps.get(room_id, []).duplicate()
+
+
+func add_room_scrap(room_id: int, scrap_data: Dictionary) -> void:
+	if not _room_scraps.has(room_id):
+		_room_scraps[room_id] = []
+	_room_scraps[room_id].append(scrap_data)
+
+
+func clear_room_scraps(room_id: int) -> void:
+	_room_scraps.erase(room_id)
+
+
+func clear_all_room_scraps() -> void:
+	_room_scraps.clear()
+
 
 func use_generated() -> bool:
 	return _generated

@@ -12,6 +12,9 @@ enum Mode { FOLLOW_NORMAL, FOLLOW_COMBAT, ROOM_SHOWCASE }
 @export var combat_zoom_multiplier: float = 1.25
 ## Tras 3 bajas: zoom que encaja todo el rect de la sala en el viewport; el margen (menor que 1) deja un poco de aire alrededor.
 @export_range(0.88, 1.0, 0.01) var showcase_fit_margin: float = 0.94
+## Resolución de referencia (altura en px) para la que se calibraron los valores de zoom.
+## Ejemplo: 1440 para 2K, 1080 para Full HD. En resoluciones mayores el zoom escala proporcionalmente.
+@export var reference_resolution_height: float = 1440.0
 ## Suavizado del paneo hacia el centro en vista “showcase” (sala completa).
 @export var combat_follow_smoothness: float = 12.0
 ## Modo combate: tiempo aproximado de respuesta de la cámara (SmoothDamp; más alto = más retraso y curva menos lineal).
@@ -44,15 +47,23 @@ var _combat_follow_vel: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
 	add_to_group("game_camera")
-	_target_zoom = zoom_level
-	zoom = Vector2(zoom_level, zoom_level)
+	var delta := _get_resolution_delta()
+	_target_zoom = zoom_level * delta
+	zoom = Vector2(_target_zoom, _target_zoom)
 	make_current()
 	_apply_follow_for_mode(true, 0.0)
 
 
+func _get_resolution_delta() -> float:
+	var current_height := get_viewport().get_visible_rect().size.y
+	if reference_resolution_height <= 0.0:
+		return 1.0
+	return current_height / reference_resolution_height
+
+
 func reset_to_default_follow() -> void:
 	_mode = Mode.FOLLOW_NORMAL
-	_target_zoom = zoom_level
+	_target_zoom = zoom_level * _get_resolution_delta()
 	zoom = Vector2(_target_zoom, _target_zoom)
 	_combat_follow_vel = Vector2.ZERO
 	_apply_follow_for_mode(true, 0.0)
@@ -60,7 +71,7 @@ func reset_to_default_follow() -> void:
 
 func enter_combat_view() -> void:
 	_mode = Mode.FOLLOW_COMBAT
-	_target_zoom = zoom_level * combat_zoom_multiplier
+	_target_zoom = zoom_level * combat_zoom_multiplier * _get_resolution_delta()
 	_combat_follow_vel = Vector2.ZERO
 
 
@@ -70,7 +81,7 @@ func enter_room_showcase_view() -> void:
 	var b := _room_bounds_global()
 	if b.size == Vector2.ZERO:
 		_showcase_position = global_position
-		_target_zoom = zoom_level
+		_target_zoom = zoom_level * _get_resolution_delta()
 	else:
 		_showcase_position = b.get_center()
 		_target_zoom = _compute_zoom_to_fit_room_rect(b)

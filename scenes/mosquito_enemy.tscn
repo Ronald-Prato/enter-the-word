@@ -8,6 +8,8 @@
 size = Vector2(38, 22)
 
 [node name="MosquitoEnemy" unique_id=1643049708 instance=ExtResource("1_enemy")]
+collision_layer = 0
+collision_mask = 0
 script = ExtResource("2_mosquito")
 strike_hit_forward_px = 26.0
 strike_hit_shape_size = Vector2(38, 22)

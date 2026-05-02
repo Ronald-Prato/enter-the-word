@@ -2,7 +2,9 @@ extends Node2D
 
 ## Píxeles fijos en mundo donde murió un mosquito (colores muestreados del sprite).
 
-const SCRAP_PX := 2.0
+const SCRAP_PX := 1.0
+## Opacidad de los píxeles en el suelo (0.0 = invisible, 1.0 = opaco).
+const SCRAP_ALPHA := 0.45
 
 var _offsets: PackedVector2Array = PackedVector2Array()
 var _colors: PackedColorArray = PackedColorArray()
@@ -17,6 +19,8 @@ func setup(world_center: Vector2, scrap_colors: PackedColorArray, scrap_offsets:
 		_colors.resize(n)
 	if n < _offsets.size():
 		_offsets.resize(n)
+	for i: int in n:
+		_colors[i].a = SCRAP_ALPHA
 	_apply_darkness_unshroud()
 	queue_redraw()
 

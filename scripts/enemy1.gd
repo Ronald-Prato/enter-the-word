@@ -47,7 +47,7 @@ func _ready() -> void:
 	motion_mode = MOTION_MODE_FLOATING
 	add_to_group("enemies")
 	z_as_relative = false
-	z_index = 5
+	z_index = 6
 	_detection_area.body_entered.connect(_on_detection_body_entered)
 	_detection_area.body_exited.connect(_on_detection_body_exited)
 	_sync_detection_shape_radius()
