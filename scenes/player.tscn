@@ -786,7 +786,7 @@ animations = [{
 }]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_dqkch"]
-size = Vector2(10, 14)
+size = Vector2(10, 17)
 
 [node name="Player" type="CharacterBody2D" unique_id=1209272007]
 script = ExtResource("1_player")
@@ -801,5 +801,5 @@ autoplay = "idle_sideways"
 offset = Vector2(12, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1774653773]
-position = Vector2(-1, 4)
+position = Vector2(-1, 5.5)
 shape = SubResource("RectangleShape2D_dqkch")
