@@ -1,9 +1,9 @@
-[gd_scene format=3 uid="uid://cbckgwtbdft8e"]
+[gd_scene format=3 uid="uid://dtxamcj82tw72"]
 
 [ext_resource type="PackedScene" uid="uid://b1rwnjb20bwcf" path="res://scenes/enemy.tscn" id="1_enemy"]
-[ext_resource type="Script" uid="uid://clyia0qclwxsu" path="res://scripts/mosquito_enemy.gd" id="2_mosquito"]
-[ext_resource type="SpriteFrames" uid="uid://c8mosqframes1" path="res://resources/mosquito_sprite_frames.tres" id="3_frames"]
-[ext_resource type="Shader" uid="uid://cfmosgreenred71" path="res://shaders/mosquito_green_to_red.gdshader" id="4_neon_palette"]
+[ext_resource type="Script" uid="uid://b4q33l10jjcoh" path="res://scripts/big_mosquito_enemy.gd" id="2_mosquito"]
+[ext_resource type="SpriteFrames" uid="uid://dsque8ju57eo7" path="res://resources/big_mosquito_sprite_frames.tres" id="3_frames"]
+[ext_resource type="Shader" path="res://shaders/mosquito_green_to_red.gdshader" id="4_neon_palette"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_mosquito_green"]
 shader = ExtResource("4_neon_palette")
@@ -19,33 +19,40 @@ shader_parameter/peak_influence = 0.96
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_strike"]
 size = Vector2(38, 22)
 
-[node name="MosquitoEnemy" unique_id=1643049708 instance=ExtResource("1_enemy")]
+[node name="BigMosquitoEnemy" unique_id=1643049709 instance=ExtResource("1_enemy")]
 collision_layer = 0
 collision_mask = 0
 script = ExtResource("2_mosquito")
-strike_hit_forward_px = 26.0
+strike_hit_forward_px = 31.2
 strike_hit_shape_size = Vector2(38, 22)
 hit_flash_sprite_hdr_peak = 3.05
 death_scrap_count = 10
 death_scrap_spread_px = 14.0
+move_dash_speed = 220.0
+move_dash_duration_s = 0.35
+move_dash_cooldown_s = 0.75
+move_slow_speed = 18.0
+move_dash_angle_spread_deg = 55.0
 speed = 70.0
 radius = 6.0
 body_color = Color(0.42, 0.38, 0.52, 1)
 draws_body_circle = false
 draws_attack_blade = false
 draws_hit_flash_circle = false
-max_health = 9.0
+max_health = 12.0
+attack_range = 66.0
 
-[node name="MosquitoSprite" type="AnimatedSprite2D" parent="." index="5" unique_id=1033040532]
-material = SubResource("ShaderMaterial_mosquito_green")
+[node name="MosquitoSprite" type="AnimatedSprite2D" parent="." index="5" unique_id=1033040533]
 texture_filter = 1
+material = SubResource("ShaderMaterial_mosquito_green")
 scale = Vector2(1.5, 1.5)
 sprite_frames = ExtResource("3_frames")
-animation = &"death"
+animation = &"moving"
+metadata/_edit_group_ = true
 
-[node name="StrikeHitArea" type="Area2D" parent="." index="6" unique_id=943154458]
+[node name="StrikeHitArea" type="Area2D" parent="." index="6" unique_id=943154459]
 collision_layer = 0
 monitoring = false
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="StrikeHitArea" index="0" unique_id=223320597]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StrikeHitArea" index="0" unique_id=223320598]
 shape = SubResource("RectangleShape2D_strike")

@@ -1,6 +1,6 @@
 extends "res://scripts/enemy.gd"
 
-## Sprite: mismo shader neón que el rojo (`replace_color` verde HDR); scraps vía `mosquito_neon_palette_remap`.
+## Big Mosquito: clon exacto del mosquito verde (mismo comportamiento, mismos colores).
 
 const ANIM_MOVING := &"moving"
 const ANIM_ATTACK := &"attack"
@@ -35,6 +35,17 @@ var _prev_ai_state: State = State.IDLE
 var _last_flip_h: bool = false
 var _attack_anim_started_for_strike: bool = false
 var _hit_flash_intensity_for_sprite: float = 0.0
+
+# --- Dash de movimiento (big mosquito) ---
+@export var move_dash_speed: float = 220.0
+@export var move_dash_duration_s: float = 0.35
+@export var move_dash_cooldown_s: float = 0.75
+@export var move_slow_speed: float = 18.0
+@export var move_dash_angle_spread_deg: float = 55.0
+
+var _move_dash_timer: float = 0.0
+var _move_dash_cooldown: float = 0.0
+var _move_dash_dir: Vector2 = Vector2.ZERO
 
 
 func _sync_hit_flash_visual(intensity: float) -> void:
@@ -71,7 +82,7 @@ func _ready() -> void:
 	if _sprite != null:
 		_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		if _sprite.sprite_frames == null:
-			push_warning("MosquitoEnemy: asigná SpriteFrames en MosquitoSprite o en mosquito_sprite_frames.tres.")
+			push_warning("BigMosquitoEnemy: asigná SpriteFrames en MosquitoSprite o en big_mosquito_sprite_frames.tres.")
 	super._ready()
 	if _sprite != null:
 		_mosquito_palette_mat = _sprite.material as ShaderMaterial
@@ -88,6 +99,72 @@ func _ready() -> void:
 		if cs != null and cs.shape is RectangleShape2D:
 			(cs.shape as RectangleShape2D).size = strike_hit_shape_size
 			cs.position = Vector2(strike_hit_shape_size.x * 0.32, 0.0)
+	# Inicializar cooldown de dash con offset aleatorio para evitar sincronización
+	_move_dash_cooldown = randf_range(0.0, move_dash_cooldown_s)
+
+
+func _tick_chase(delta: float) -> void:
+	if _player == null or not is_instance_valid(_player):
+		velocity = velocity.lerp(Vector2.ZERO, 1.0 - exp(-accel_smoothing * delta))
+		return
+
+	var d_player := global_position.distance_to(_player.global_position)
+	if d_player <= attack_range and _cooldown_remaining <= 0.0:
+		# Entrar en modo ataque como el mosquito normal
+		_state = State.WINDUP
+		_windup_remaining = attack_windup_s
+		_aim_locked = false
+		velocity = Vector2.ZERO
+		_move_dash_timer = 0.0
+		_move_dash_cooldown = 0.0
+		queue_redraw()
+		return
+
+	# Si está dasheando, aplicar velocidad con easing (acelera al inicio, desacelera al final)
+	if _move_dash_timer > 0.0:
+		_move_dash_timer -= delta
+		var progress: float = 1.0 - (_move_dash_timer / maxf(move_dash_duration_s, 0.0001))
+		var eased: float = _ease_in_out_quad(progress)
+		velocity = _move_dash_dir * move_dash_speed * eased
+		if _move_dash_timer <= 0.0:
+			velocity = Vector2.ZERO
+			_move_dash_cooldown = move_dash_cooldown_s
+			_move_dash_dir = Vector2.ZERO
+		return
+
+	# Cooldown entre dashes: moverse lentamente hacia el player
+	if _move_dash_cooldown > 0.0:
+		_move_dash_cooldown -= delta
+		var to_player := _player.global_position - global_position
+		if to_player.length() > 0.5:
+			var desired := to_player.normalized() * move_slow_speed
+			var t := 1.0 - exp(-accel_smoothing * delta)
+			velocity = velocity.lerp(desired, t)
+		else:
+			velocity = velocity.lerp(Vector2.ZERO, 1.0 - exp(-accel_smoothing * delta))
+		return
+
+	# Iniciar nuevo dash hacia dirección aleatoria tendiendo al player
+	var to_player := _player.global_position - global_position
+	if to_player.length() > 0.5:
+		var base_dir := to_player.normalized()
+		var random_angle := deg_to_rad(randf_range(-move_dash_angle_spread_deg, move_dash_angle_spread_deg))
+		_move_dash_dir = base_dir.rotated(random_angle)
+		_move_dash_timer = move_dash_duration_s
+		velocity = _move_dash_dir * move_dash_speed
+	else:
+		velocity = Vector2.ZERO
+
+
+## Ease-in-out cuadrático: suave aceleración al inicio y desaceleración al final.
+func _ease_in_out_quad(t: float) -> float:
+	if t < 0.0:
+		return 0.0
+	if t > 1.0:
+		return 1.0
+	if t < 0.5:
+		return 2.0 * t * t
+	return 1.0 - pow(-2.0 * t + 2.0, 2.0) / 2.0
 
 
 func _configure_attack_trail_visual() -> void:

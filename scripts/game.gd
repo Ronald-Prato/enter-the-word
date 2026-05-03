@@ -8,10 +8,12 @@ const ROOM_POSITION := Vector2(-8, 7)
 const ROOM_SCALE := 2.0
 
 const MOSQUITO_SCENE := preload("res://scenes/mosquito_enemy.tscn")
+const RED_MOSQUITO_SCENE := preload("res://scenes/red_mosquito_enemy.tscn")
+const BIG_MOSQUITO_SCENE := preload("res://scenes/big_mosquito_enemy.tscn")
 ## Distancia mínima jugador–enemigo al spawnear (espacio global, con escala de sala aplicada).
 const ENEMY_MIN_PLAYER_DISTANCE_GLOBAL := 80.0
-## Separación mínima entre enemigos al spawnear (global); evita que aparezcan amontonados.
-const ENEMY_MIN_SEPARATION_GLOBAL := 90.0
+## Separación mínima entre cada nuevo enemigo y cada uno ya existente (global).
+const ENEMY_MIN_SEPARATION_GLOBAL := 132.0
 const MAX_CONCURRENT_MOSQUITOES := 3
 ## Tras entrar en sala con enemigos: espera antes del primer mosquito.
 const INITIAL_ENEMY_SPAWN_DELAY_S := 0.85
@@ -366,11 +368,19 @@ func _spawn_single_mosquito(room: Node2D = null) -> bool:
 		_enemy_spawn_rng,
 		_player.global_position,
 		ENEMY_MIN_PLAYER_DISTANCE_GLOBAL,
-		80,
+		192,
 		avoid,
 		ENEMY_MIN_SEPARATION_GLOBAL
 	)
-	var enemy := MOSQUITO_SCENE.instantiate() as Node2D
+	var r := _enemy_spawn_rng.randf()
+	var scene: PackedScene
+	if r < 0.33:
+		scene = BIG_MOSQUITO_SCENE
+	elif r < 0.66:
+		scene = RED_MOSQUITO_SCENE
+	else:
+		scene = MOSQUITO_SCENE
+	var enemy := scene.instantiate() as Node2D
 	if enemy == null:
 		return false
 	add_child(enemy)

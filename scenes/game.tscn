@@ -7,6 +7,7 @@
 [ext_resource type="Script" uid="uid://cgvlc6q644086" path="res://scripts/camera_follow.gd" id="5_camera_follow"]
 [ext_resource type="Script" uid="uid://bupronyascot" path="res://scripts/combat_feedback_hud.gd" id="6_combat_feedback"]
 [ext_resource type="Shader" uid="uid://d0jghvq2kemo8" path="res://shaders/damage_vignette.gdshader" id="7_vignette_shader"]
+[ext_resource type="Shader" path="res://shaders/crt_overlay.gdshader" id="8_crt_shader"]
 
 [sub_resource type="Environment" id="Environment_world"]
 background_mode = 3
@@ -30,6 +31,19 @@ shader_parameter/color = Color(1.2, 0.12, 0.16, 0.28)
 shader_parameter/inner_radius = 0.78
 shader_parameter/outer_radius = 1.05
 shader_parameter/curve = 2.8
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_crt_overlay"]
+shader = ExtResource("8_crt_shader")
+shader_parameter/effect_mix = 0.76
+shader_parameter/scanline_intensity = 0.2
+shader_parameter/scanline_count = 310.0
+shader_parameter/pixel_grid_intensity = 0.11
+shader_parameter/vignette_intensity = 0.28
+shader_parameter/curvature = 0.032
+shader_parameter/tint = Color(0.96, 0.98, 0.9, 1)
+shader_parameter/tint_strength = 0.055
+shader_parameter/chroma_strength = 0.0044
+shader_parameter/chroma_mix = 0.82
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_minimap_panel"]
 content_margin_left = 0.0
@@ -103,3 +117,25 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("3_minimap")
+
+[node name="CRTOverlay" type="CanvasLayer" parent="." unique_id=999999999]
+layer = 10
+
+[node name="CRTRoot" type="Control" parent="CRTOverlay" unique_id=999999997]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="CRTEffect" type="ColorRect" parent="CRTOverlay/CRTRoot" unique_id=999999998]
+material = SubResource("ShaderMaterial_crt_overlay")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2

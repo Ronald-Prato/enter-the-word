@@ -5,14 +5,15 @@ extends CharacterBody2D
 ## la lógica (IA, golpes, colisión) sigue en este nodo raíz.
 ##
 ## AI:
-##  - Intercepción (lead target) + separation entre enemigos.
+##  - IDLE: deambula en direcciones aleatorias hasta que el jugador entra en `aggro_range`.
+##  - CHASE: intercepción (lead target) + separation entre enemigos.
 ##  - Ataque cuerpo a cuerpo: si el player entra en `attack_range`, pausa
 ##    `attack_windup_s` y luego estocada + dash. La dirección se fija en
 ##    `attack_aim_lock_at_s` (p. ej. a los 400 ms de un windup de 600 ms):
 ##    apunta a donde estaba el player en ese instante; los últimos ms son margen
 ##    para esquivar. Sin daño al player por ahora.
 
-enum State { CHASE, WINDUP, STRIKE }
+enum State { IDLE, CHASE, WINDUP, STRIKE }
 
 @export var speed: float = 62.0
 @export var accel_smoothing: float = 6.5
@@ -40,6 +41,15 @@ enum State { CHASE, WINDUP, STRIKE }
 
 @export var separation_radius: float = 22.0
 @export var separation_weight: float = 60.0
+
+## Distancia al jugador para pasar de IDLE a CHASE (perseguir / interceptar).
+@export var aggro_range: float = 240.0
+## Velocidad de deambular en IDLE (dirección aleatoria periódica).
+@export var idle_wander_speed: float = 42.0
+@export var idle_wander_dir_change_min_s: float = 0.75
+@export var idle_wander_dir_change_max_s: float = 2.1
+## En IDLE la separación entre enemigos se aplica con este factor (evita amontonarse al vagar).
+@export_range(0.0, 1.0, 0.05) var idle_separation_weight_scale: float = 0.55
 
 ## --- Ataque (estocada) ---
 ## Distancia al player para iniciar windup (se dibuja el círculo de alcance).
@@ -137,7 +147,9 @@ var _dying: bool = false
 static var _pixel_spark_tex: Texture2D
 var _hit_spark_color_ramp: Gradient
 
-var _state: State = State.CHASE
+var _state: State = State.IDLE
+var _idle_wander_dir: Vector2 = Vector2.RIGHT
+var _idle_wander_timer: float = 0.0
 var _windup_remaining: float = 0.0
 var _strike_remaining: float = 0.0
 var _dash_remaining: float = 0.0
@@ -163,6 +175,8 @@ func _ready() -> void:
 		_pixel_spark_tex = _create_pixel_spark_texture()
 	_setup_hit_particles()
 	_lead_bias = randf_range(lead_bias_min, lead_bias_max)
+	_pick_new_idle_wander_dir()
+	_idle_wander_timer = randf_range(idle_wander_dir_change_min_s, idle_wander_dir_change_max_s)
 	_health = max_health
 	_refresh_player()
 	_play_spawn_animation()
@@ -250,6 +264,9 @@ func apply_player_swing_knockback(from_direction: Vector2, damage: float = 0.0) 
 func receive_player_melee_hit(from_direction: Vector2, damage: float = 0.0, knockback_scale: float = 1.0) -> void:
 	if _dying:
 		return
+	if _state == State.IDLE:
+		_state = State.CHASE
+		queue_redraw()
 	if from_direction.length_squared() < 0.0001:
 		return
 	_spawn_hit_sparks(from_direction)
@@ -376,6 +393,8 @@ func _physics_process(delta: float) -> void:
 	_cooldown_remaining = maxf(_cooldown_remaining - delta, 0.0)
 
 	match _state:
+		State.IDLE:
+			_tick_idle(delta)
 		State.CHASE:
 			_tick_chase(delta)
 		State.WINDUP:
@@ -421,6 +440,38 @@ func get_strike_hit_done() -> bool:
 ## Marca que el golpe de estocada de este ciclo ya aplicó daño (p. ej. hitbox de área).
 func register_strike_hit_consumed() -> void:
 	_strike_hit_player = true
+
+
+func _pick_new_idle_wander_dir() -> void:
+	_idle_wander_dir = Vector2.from_angle(randf() * TAU)
+	if _idle_wander_dir.length_squared() < 0.0001:
+		_idle_wander_dir = Vector2.RIGHT
+
+
+func _tick_idle(delta: float) -> void:
+	if _player == null or not is_instance_valid(_player):
+		_refresh_player()
+	if _player != null and is_instance_valid(_player):
+		var d_aggro: float = global_position.distance_to(_player.global_position)
+		if d_aggro <= aggro_range:
+			_state = State.CHASE
+			queue_redraw()
+			return
+
+	_idle_wander_timer -= delta
+	if _idle_wander_timer <= 0.0:
+		_pick_new_idle_wander_dir()
+		_idle_wander_timer = randf_range(idle_wander_dir_change_min_s, idle_wander_dir_change_max_s)
+
+	var desired: Vector2 = _idle_wander_dir * idle_wander_speed
+	var sep := _compute_separation()
+	if sep != Vector2.ZERO:
+		desired += sep * separation_weight * idle_separation_weight_scale
+	if desired.length() > idle_wander_speed:
+		desired = desired.normalized() * idle_wander_speed
+
+	var t := 1.0 - exp(-accel_smoothing * delta)
+	velocity = velocity.lerp(desired, t)
 
 
 func _tick_chase(delta: float) -> void:
@@ -573,6 +624,8 @@ func _compute_separation() -> Vector2:
 		if sib == self or not is_instance_valid(sib):
 			continue
 		if not (sib is Node2D):
+			continue
+		if not sib.is_in_group("enemies"):
 			continue
 		var other := sib as Node2D
 		var delta := global_position - other.global_position

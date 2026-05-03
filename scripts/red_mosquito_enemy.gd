@@ -1,20 +1,21 @@
 extends "res://scripts/enemy.gd"
 
-## Sprite: mismo shader neón que el rojo (`replace_color` verde HDR); scraps vía `mosquito_neon_palette_remap`.
+## RedMosquito: mismo `ShaderMaterial` neón que el verde (`mosquito_green_to_red.gdshader`),
+## con `replace_color` rojo HDR; scraps vía `mosquito_neon_palette_remap`.
 
 const ANIM_MOVING := &"moving"
 const ANIM_ATTACK := &"attack"
 const ANIM_DEATH := &"death"
 
 const _FLIP_VEL_EPS := float(6.0)
-## Mismo verde que `HitParticles` al recibir daño (fallback si no se puede muestrear el sprite).
-const MOSQUITO_HIT_SPARK_GREEN := Color(0.52, 0.98, 0.58, 1.0)
-## Estela del dash del mosquito (viejo -> nuevo): verde translúcido a verde vivo.
-const MOSQUITO_TRAIL_GRADIENT_OLD := Color(0.24, 0.56, 0.29, 0.0)
-const MOSQUITO_TRAIL_GRADIENT_NEW := Color(0.54, 1.05, 0.62, 0.95)
-## HDR verde neón durante WINDUP (bloom vía WorldEnvironment; mismo espíritu que la hoja de estocada).
-const WINDUP_NEON_BASE := Color(0.38, 2.35, 0.62, 1.0)
-const WINDUP_NEON_CHARGED := Color(0.52, 4.25, 1.05, 1.0)
+## Mismo rojo que `HitParticles` al recibir daño (fallback si no se puede muestrear el sprite).
+const RED_MOSQUITO_HIT_SPARK := Color(1.0, 0.65, 0.65, 1.0)
+## Estela del dash del red mosquito (viejo -> nuevo): rojo translúcido a rojo vivo.
+const RED_MOSQUITO_TRAIL_GRADIENT_OLD := Color(0.85, 0.35, 0.35, 0.0)
+const RED_MOSQUITO_TRAIL_GRADIENT_NEW := Color(1.1, 0.6, 0.6, 0.95)
+## HDR rojo neón durante WINDUP (bloom vía WorldEnvironment).
+const WINDUP_NEON_BASE := Color(2.5, 0.5, 0.5, 1.0)
+const WINDUP_NEON_CHARGED := Color(4.5, 0.65, 0.65, 1.0)
 
 const _DEATH_SCRAPS_SCENE: PackedScene = preload("res://scenes/mosquito_death_scraps.tscn")
 const _NEON_PALETTE_REMAP := preload("res://scripts/mosquito_neon_palette_remap.gd")
@@ -35,6 +36,7 @@ var _prev_ai_state: State = State.IDLE
 var _last_flip_h: bool = false
 var _attack_anim_started_for_strike: bool = false
 var _hit_flash_intensity_for_sprite: float = 0.0
+var _combo_remaining: int = 0
 
 
 func _sync_hit_flash_visual(intensity: float) -> void:
@@ -52,7 +54,7 @@ func _apply_mosquito_sprite_modulate() -> void:
 		var i: float = clampf(_hit_flash_intensity_for_sprite, 0.0, 1.0)
 		var peak: float = minf(player_hit_flash_hdr, hit_flash_sprite_hdr_peak)
 		var m: float = lerpf(1.0, peak, i)
-		_sprite.self_modulate = Color(m, m, m, 1.0)
+		_sprite.self_modulate = Color(m, m * 0.35, m * 0.35, 1.0)
 		return
 	if get_ai_state() == State.WINDUP:
 		_sprite.self_modulate = _windup_charge_self_modulate()
@@ -71,7 +73,7 @@ func _ready() -> void:
 	if _sprite != null:
 		_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		if _sprite.sprite_frames == null:
-			push_warning("MosquitoEnemy: asigná SpriteFrames en MosquitoSprite o en mosquito_sprite_frames.tres.")
+			push_warning("RedMosquitoEnemy: asigná SpriteFrames en MosquitoSprite o en mosquito_sprite_frames.tres.")
 	super._ready()
 	if _sprite != null:
 		_mosquito_palette_mat = _sprite.material as ShaderMaterial
@@ -94,16 +96,16 @@ func _configure_attack_trail_visual() -> void:
 	if _trail == null:
 		return
 	var grad := Gradient.new()
-	grad.add_point(0.0, MOSQUITO_TRAIL_GRADIENT_OLD)
-	grad.add_point(1.0, MOSQUITO_TRAIL_GRADIENT_NEW)
+	grad.add_point(0.0, RED_MOSQUITO_TRAIL_GRADIENT_OLD)
+	grad.add_point(1.0, RED_MOSQUITO_TRAIL_GRADIENT_NEW)
 	_trail.gradient = grad
-	_trail.default_color = MOSQUITO_TRAIL_GRADIENT_NEW
+	_trail.default_color = RED_MOSQUITO_TRAIL_GRADIENT_NEW
 
 
 func _configure_mosquito_hit_particles() -> void:
 	if _hit_particles == null:
 		return
-	_hit_particles.color = MOSQUITO_HIT_SPARK_GREEN
+	_hit_particles.color = RED_MOSQUITO_HIT_SPARK
 	_hit_particles.amount = 5
 	_hit_particles.spread = 18.0
 	_hit_particles.initial_velocity_min = 72.0
@@ -116,10 +118,10 @@ func _configure_mosquito_hit_particles() -> void:
 
 func _create_mosquito_hit_spark_color_ramp() -> Gradient:
 	var grad := Gradient.new()
-	grad.add_point(0.0, Color(0.75, 1.0, 0.82, 1.0))
-	grad.add_point(0.32, Color(0.38, 0.9, 0.48, 1.0))
-	grad.add_point(0.68, Color(0.18, 0.62, 0.32, 0.82))
-	grad.add_point(1.0, Color(0.08, 0.38, 0.18, 0.0))
+	grad.add_point(0.0, Color(1.0, 0.82, 0.82, 1.0))
+	grad.add_point(0.32, Color(1.0, 0.5, 0.5, 1.0))
+	grad.add_point(0.68, Color(0.85, 0.35, 0.35, 0.82))
+	grad.add_point(1.0, Color(0.6, 0.15, 0.15, 0.0))
 	return grad
 
 
@@ -131,6 +133,21 @@ func _after_physics_step(_delta: float) -> void:
 	if _dying or _sprite == null or _strike_hit_area == null:
 		return
 	var st: State = get_ai_state()
+
+	# Detectar inicio de nuevo combo (CHASE -> WINDUP): preparar ataque extra
+	if _prev_ai_state == State.CHASE and st == State.WINDUP:
+		_combo_remaining = 1
+
+	# Detectar fin de ataque (STRIKE -> CHASE): forzar segundo ataque si queda
+	if _prev_ai_state == State.STRIKE and st == State.CHASE:
+		if _combo_remaining > 0:
+			_combo_remaining -= 1
+			_state = State.WINDUP
+			_windup_remaining = attack_windup_s
+			_aim_locked = false
+			velocity = Vector2.ZERO
+			_freeze_attack_windup_visual()
+			st = State.WINDUP
 
 	if st == State.WINDUP:
 		_freeze_attack_windup_visual()
@@ -258,14 +275,14 @@ func _build_death_scrap_data(count: int, spread: float) -> Dictionary:
 	var img: Image = _get_mosquito_frame_image_for_scraps()
 	if img == null or img.get_width() < 1 or img.get_height() < 1:
 		for _i in count:
-			colors.append(MOSQUITO_HIT_SPARK_GREEN)
+			colors.append(RED_MOSQUITO_HIT_SPARK)
 			offs.append(_random_scrap_offset(rng, spread))
 		return {"colors": colors, "offsets": offs}
 	var w: int = img.get_width()
 	var h: int = img.get_height()
 	if w < 1 or h < 1:
 		for _i in count:
-			colors.append(MOSQUITO_HIT_SPARK_GREEN)
+			colors.append(RED_MOSQUITO_HIT_SPARK)
 			offs.append(_random_scrap_offset(rng, spread))
 		return {"colors": colors, "offsets": offs}
 	var max_attempts: int = maxi(count * 50, 50)
@@ -277,11 +294,11 @@ func _build_death_scrap_data(count: int, spread: float) -> Dictionary:
 		var col: Color = img.get_pixel(px, py)
 		if col.a < 0.2:
 			continue
-		col = _NEON_PALETTE_REMAP.remap_scrap_pixel(col, _mosquito_palette_mat, false)
+		col = _NEON_PALETTE_REMAP.remap_scrap_pixel(col, _mosquito_palette_mat, true)
 		colors.append(col)
 		offs.append(_random_scrap_offset(rng, spread))
 	while colors.size() < count:
-		var fb: Color = MOSQUITO_HIT_SPARK_GREEN
+		var fb: Color = RED_MOSQUITO_HIT_SPARK
 		if colors.size() > 0:
 			fb = colors[rng.randi_range(0, colors.size() - 1)]
 		colors.append(fb)

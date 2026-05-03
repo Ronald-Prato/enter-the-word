@@ -218,8 +218,37 @@ func _marker_for_entry(entry: RoomTransition.EntrySide) -> Marker2D:
 			return null
 
 
+func _enemy_spawn_point_valid(
+	local_pt: Vector2,
+	player_global: Vector2,
+	min_dist_global: float,
+	avoid_global: Array[Vector2],
+	min_dist_avoid_global: float
+) -> bool:
+	var g := to_global(local_pt)
+	if g.distance_to(player_global) < min_dist_global:
+		return false
+	if min_dist_avoid_global > 0.0 and not avoid_global.is_empty():
+		for p in avoid_global:
+			if g.distance_to(p) < min_dist_avoid_global:
+				return false
+	return true
+
+
+func _enemy_spawn_point_score(local_pt: Vector2, player_global: Vector2, avoid_global: Array[Vector2]) -> float:
+	var g := to_global(local_pt)
+	var d_player: float = g.distance_to(player_global)
+	if avoid_global.is_empty():
+		return d_player
+	var d_avoid: float = INF
+	for p in avoid_global:
+		d_avoid = minf(d_avoid, g.distance_to(p))
+	return minf(d_player, d_avoid)
+
+
 ## Punto local aleatorio dentro de [enemy_spawn_rect] que queda al menos [min_dist_global] del jugador (global).
-## Si [avoid_global] no está vacío, también exige [min_dist_avoid_global] respecto a cada punto (otros enemigos).
+## Si [avoid_global] no está vacío, también exige [min_dist_avoid_global] respecto a cada uno (otros enemigos).
+## Tras intentos aleatorios, barre una rejilla sobre el rect para no caer en fallbacks pegados entre sí.
 func pick_enemy_spawn_local(
 	rng: RandomNumberGenerator,
 	player_global: Vector2,
@@ -230,32 +259,37 @@ func pick_enemy_spawn_local(
 ) -> Vector2:
 	var r := enemy_spawn_rect
 	var best: Vector2 = r.get_center()
-	var best_score: float = -1.0
+	var best_score: float = _enemy_spawn_point_score(best, player_global, avoid_global)
+
 	for _i in max_attempts:
 		var local_pt := Vector2(
 			rng.randf_range(r.position.x, r.position.x + r.size.x),
 			rng.randf_range(r.position.y, r.position.y + r.size.y)
 		)
-		var g := to_global(local_pt)
-		if g.distance_to(player_global) < min_dist_global:
-			continue
-		var ok := true
-		if min_dist_avoid_global > 0.0 and not avoid_global.is_empty():
-			for p in avoid_global:
-				if g.distance_to(p) < min_dist_avoid_global:
-					ok = false
-					break
-		if ok:
+		if _enemy_spawn_point_valid(local_pt, player_global, min_dist_global, avoid_global, min_dist_avoid_global):
 			return local_pt
-		## Puntuación = mínima distancia a jugador y a exclusiones; sirve de fallback si no hay hueco perfecto.
-		var d_player: float = g.distance_to(player_global)
-		var score: float = d_player
-		if not avoid_global.is_empty():
-			var d_avoid: float = 1.0e12
-			for p in avoid_global:
-				d_avoid = minf(d_avoid, g.distance_to(p))
-			score = minf(d_player, d_avoid)
-		if score > best_score:
-			best_score = score
+		var sc: float = _enemy_spawn_point_score(local_pt, player_global, avoid_global)
+		if sc > best_score:
+			best_score = sc
 			best = local_pt
+
+	var cols: int = clampi(ceili(r.size.x / 26.0), 5, 16)
+	var rows: int = clampi(ceili(r.size.y / 26.0), 5, 14)
+	for iy in rows + 1:
+		for ix in cols + 1:
+			var local_pt := Vector2(
+				r.position.x + r.size.x * (float(ix) / float(maxi(cols, 1))),
+				r.position.y + r.size.y * (float(iy) / float(maxi(rows, 1)))
+			)
+			local_pt.x += rng.randf_range(-7.0, 7.0)
+			local_pt.y += rng.randf_range(-7.0, 7.0)
+			local_pt.x = clampf(local_pt.x, r.position.x, r.position.x + r.size.x)
+			local_pt.y = clampf(local_pt.y, r.position.y, r.position.y + r.size.y)
+			if _enemy_spawn_point_valid(local_pt, player_global, min_dist_global, avoid_global, min_dist_avoid_global):
+				return local_pt
+			var sc2: float = _enemy_spawn_point_score(local_pt, player_global, avoid_global)
+			if sc2 > best_score:
+				best_score = sc2
+				best = local_pt
+
 	return best
